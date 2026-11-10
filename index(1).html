@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Etiqueta QR Code iFood</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@800&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f5f2;--fg:#1c1c1c;--card:#fff;--line:#d9d6cf;--accent:#ea1d2c;--muted:#6b6862}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--fg:#eeece7;--card:#232322;--line:#3a3935;--muted:#a09d96}}
+:root[data-theme="dark"]{--bg:#171716;--fg:#eeece7;--card:#232322;--line:#3a3935;--muted:#a09d96}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--muted)}
+.drop{display:block;border:2px dashed var(--line);border-radius:14px;background:var(--card);padding:28px 16px;text-align:center;cursor:pointer}
+.drop.over{border-color:var(--accent)}
+.drop input{display:none}
+.drop b{display:block;font-size:1.05rem}
+.drop span{color:var(--muted);font-size:.9rem}
+#status{margin:16px 0;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:none}
+#status.ok{border-color:#2e9e5b}
+#status.err{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1fr;gap:20px;margin-top:8px}
+@media(min-width:640px){.grid{grid-template-columns:auto 1fr}}
+.prev{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+canvas{max-width:100%;height:auto;width:260px}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+input[type=text]{width:100%;font:inherit;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+button{font:inherit;font-weight:600;padding:11px 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+#panel{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>Etiqueta do QR Code iFood</h1>
+<p class="sub">Envie o PDF da página do iFood com o QR Code. O site lê o código e a validade do próprio arquivo e monta a etiqueta para imprimir.</p>
+
+<label class="drop" id="drop">
+<input type="file" id="file" accept="application/pdf">
+<b>Toque para escolher o PDF</b>
+<span>ou arraste o arquivo para cá</span>
+</label>
+<div id="status"></div>
+
+<div id="panel">
+<div class="grid">
+<div class="prev"><canvas id="cv"></canvas></div>
+<div>
+<label for="date">Validade (lida do PDF)</label>
+<input type="text" id="date" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa">
+<div class="btns">
+<button class="pri" id="bpdf">Baixar PDF (A6)</button>
+<button id="bpng">Baixar PNG</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const LOGO="data:image/png;base64,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";
+const $=id=>document.getElementById(id);
+const W=335,H=504,S=3;
+let grid=null,N=0,logoImg=null,qrData=null;
+
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+function say(msg,kind){const s=$("status");s.style.display="block";s.className=kind||"";s.textContent=msg}
+
+function loadLogo(){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=LOGO})}
+
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+
+async function draw(){
+  const cv=$("cv");cv.width=W*S;cv.height=H*S;
+  const c=cv.getContext("2d");
+  c.fillStyle="#fff";c.fillRect(0,0,cv.width,cv.height);
+  c.scale(S,S);
+  c.strokeStyle="#000";c.lineWidth=5;rr(c,2.5,2.5,W-5,H-5,45);c.stroke();
+  if(logoImg)c.drawImage(logoImg,65,24,203,115);
+  c.lineWidth=4;rr(c,17,147,301,307,22);c.stroke();
+  if(grid){
+    const cell=Math.floor(254/N);
+    const x0=Math.round((17+(301-cell*N)/2)*S)/S,y0=Math.round((147+(307-cell*N)/2)*S)/S;
+    c.fillStyle="#000";
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(grid[y*N+x])c.fillRect(x0+x*cell,y0+y*cell,cell,cell);
+  }
+  try{await document.fonts.load('800 20px "Open Sans"')}catch(e){}
+  const txt="Código válido até "+($("date").value||"--/--/----");
+  const fam='"Open Sans",Arial,sans-serif';
+  c.font='800 20px '+fam;
+  const sz=Math.min(20*270/c.measureText(txt).width,20);
+  c.font='800 '+sz+'px '+fam;c.fillStyle="#000";c.textAlign="center";c.textBaseline="middle";
+  c.fillText(txt,W/2,480);
+}
+
+function lum(d,i){return d[i]*.299+d[i+1]*.587+d[i+2]*.114}
+
+async function handle(file){
+  $("panel").style.display="none";
+  say("Lendo o PDF…");
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf),isEvalSupported:false,useWorkerFetch:false,disableFontFace:true}).promise;
+    const page=await pdf.getPage(1);
+    const vp=page.getViewport({scale:3});
+    const sc=document.createElement("canvas");sc.width=vp.width;sc.height=vp.height;
+    const sx=sc.getContext("2d",{willReadFrequently:true});
+    sx.fillStyle="#fff";sx.fillRect(0,0,sc.width,sc.height);
+    await page.render({canvasContext:sx,viewport:vp}).promise;
+    const tc=await page.getTextContent();
+    const text=tc.items.map(i=>i.str).join(" ");
+    const m=text.match(/v[áa]lido\s+at[ée]\s+(\d{2}\/\d{2}\/\d{4})/i);
+    const img=sx.getImageData(0,0,sc.width,sc.height);
+    const code=jsQR(img.data,sc.width,sc.height,{inversionAttempts:"dontInvert"});
+    if(!code){say("Não encontrei um QR Code nesse PDF. Confira se é a página do iFood com o código.","err");return}
+    N=17+4*code.version;
+    const L=code.location,P=[L.topLeftCorner,L.topRightCorner,L.bottomRightCorner,L.bottomLeftCorner];
+    grid=new Uint8Array(N*N);
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+      const u=(x+.5)/N,v=(y+.5)/N;
+      const px=(1-v)*((1-u)*P[0].x+u*P[1].x)+v*((1-u)*P[3].x+u*P[2].x);
+      const py=(1-v)*((1-u)*P[0].y+u*P[1].y)+v*((1-u)*P[3].y+u*P[2].y);
+      grid[y*N+x]=lum(img.data,(Math.round(py)*sc.width+Math.round(px))*4)<128?1:0;
+    }
+    qrData=code.data;
+    $("date").value=m?m[1]:"";
+    logoImg=logoImg||await loadLogo();
+    await draw();
+    $("panel").style.display="block";
+    // verificação: o QR da etiqueta precisa decodificar igual ao original
+    const cv=$("cv"),cx=cv.getContext("2d").getImageData(0,0,cv.width,cv.height);
+    const chk=jsQR(cx.data,cv.width,cv.height);
+    if(chk&&chk.data===qrData)say("QR Code lido e conferido: a etiqueta tem exatamente o mesmo código do PDF."+(m?" Validade: "+m[1]+".":" Não achei a validade no PDF, digite abaixo."),"ok");
+    else say("Atenção: o QR redesenhado não bateu com o original. Não use essa etiqueta; tente outro PDF.","err");
+  }catch(e){console.error(e);say("Não consegui ler esse arquivo ("+(e&&e.message?e.message:e)+"). Envie o PDF salvo da página do iFood.","err")}
+}
+
+$("file").addEventListener("change",e=>{if(e.target.files[0])handle(e.target.files[0])});
+const dz=$("drop");
+["dragenter","dragover"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add("over")}));
+["dragleave","drop"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove("over")}));
+dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handle(f)});
+$("date").addEventListener("input",e=>{
+  let v=e.target.value.replace(/\D/g,"").slice(0,8);
+  if(v.length>4)v=v.slice(0,2)+"/"+v.slice(2,4)+"/"+v.slice(4);else if(v.length>2)v=v.slice(0,2)+"/"+v.slice(2);
+  e.target.value=v;draw();
+});
+function dl(href,name){const a=document.createElement("a");a.href=href;a.download=name;document.body.appendChild(a);a.click();a.remove()}
+$("bpng").onclick=()=>dl($("cv").toDataURL("image/png"),"etiqueta-qr-ifood.png");
+$("bpdf").onclick=()=>{
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"mm",format:"a6"});
+  const h=140,w=h*W/H;
+  doc.addImage($("cv").toDataURL("image/png"),"PNG",(105-w)/2,4,w,h);
+  doc.save("etiqueta-qr-ifood.pdf");
+};
+loadLogo().then(i=>{logoImg=i;draw()});
+</script>
+</body>
+</html>
